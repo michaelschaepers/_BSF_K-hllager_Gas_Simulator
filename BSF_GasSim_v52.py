@@ -722,8 +722,8 @@ CO2_AMBIENT = 420.0   # ppm CO2 Außenluft
 
 # ── LÜFTER-AUSLEGUNG ─────────────────────────────────────────
 # 100% = Nennvolumenstrom — ausgelegt für max. 6 ACH Zone 01
-FAN_Z1_MAX_M3H = VOL_Z1 * 6.0   # 4744 m³/h bei 100%
-FAN_Z2_MAX_M3H = 200.0           #  200 m³/h bei 100% (Auslegung Zone 02)
+FAN_Z1_MAX_M3H = 20000.0         # Auslegungsmaximum für Simulation (editierbar via Slider)
+FAN_Z2_MAX_M3H = 2000.0          # Auslegungsmaximum Zone 02 für Simulation
 
 def fan_m3h(pct, vol, max_q=None):
     """Volumenstrom in m³/h bei gegebener Lüfterprozent und Raumvolumen"""
@@ -732,7 +732,7 @@ def fan_m3h(pct, vol, max_q=None):
     return max(pct / 100.0 * max_q, 1.0)
 
 def fan_m3h_z2(pct):
-    """Zone 02: max. 200 m³/h bei 100%"""
+    """Zone 02: max. FAN_Z2_MAX_M3H bei 100%"""
     return fan_m3h(pct, VOL_Z2, FAN_Z2_MAX_M3H)
 
 def ach_val(pct, vol, max_q=None):
@@ -746,8 +746,8 @@ CO2_DAYS        = 8
 CO2_RATE_AVG    = 0.125  # g CO2/kg/h (Durchschnitt → passt zu 1414g/kg/8d/24h ÷ Faktor Trockensubstanz)
 CO2_RATE_PEAK   = 0.38   # g CO2/kg/h (Peak Tag 4)
 # NH3: exponentieller Anstieg ab Tag 4 (Chen et al. 2019)
-NH3_RATE_BASE   = 0.0002  # g NH3/kg/h (Tag 1) — kalibriert auf 50 ppm Alarm-Schwelle
-NH3_RATE_PEAK   = 0.0038  # g NH3/kg/h (Tag 8 Peak)
+NH3_RATE_BASE   = 0.001   # g NH3/kg/h = 1 mg/kg/h (Tag 1) — realistischer BSF-Ausstoss, Peak Tag 8 ca. 6 mg/kg/h
+NH3_RATE_PEAK   = 0.00627 # g NH3/kg/h = 6.27 mg/kg/h (Tag 8 Peak bei Base 0.001)
 
 # ── GRENZWERTE (Arbeitsschutz + Prozess) ─────────────────────
 CO2_OPT = 1_000;  CO2_S1 = 3_000;  CO2_S2 = 5_000;  CO2_S3 = 10_000  # ppm
@@ -1235,18 +1235,19 @@ with st.sidebar:
     st.divider()
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.72rem;color:{MUTED};letter-spacing:2px;font-weight:600;'>LÜFTER MANUELL</p>", unsafe_allow_html=True)
 
-    # Zone 01: Stufenwahl + Feinjustierung
+    # Zone 01: Stufenwahl + absoluter m³/h Slider (0–20000)
     _slabels = [f"ECO — {stufen_pct[0]}%", f"STUFE 1 — {stufen_pct[1]}%",
                 f"STUFE 2 — {stufen_pct[2]}%", f"ALARM — {stufen_pct[3]}%"]
     sz1_sel = st.radio("Stufe Zone 01", _slabels, index=0, key="sz1_radio")
     flow_z1_stufe = stufen_pct[_slabels.index(sz1_sel)]
-    flow_z1_fine  = st.slider("Fein Z1 [%]", -15, 15, 0, key="fz1_fine")
-    flow_z1_manual = max(0, min(100, flow_z1_stufe + flow_z1_fine))
-    q1_manual = fan_m3h(flow_z1_manual, VOL_Z1)
+    _z1_default = max(1, int(flow_z1_stufe / 100.0 * FAN_Z1_MAX_M3H))
+    q1_manual = st.slider("Z1 [m³/h]", 0, 20000, _z1_default, 50, key="fz1_fine")
+    flow_z1_manual = max(1, int(q1_manual / FAN_Z1_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{BLUE};margin:2px 0 6px 0;'>"
-                f"Z1: <b>{flow_z1_manual}%</b> → <b>{q1_manual:.0f} m³/h</b> ({ach_val(flow_z1_manual,VOL_Z1):.2f} ACH)</p>",
+                f"Z1: <b>{q1_manual} m³/h</b> → <b>{flow_z1_manual}%</b> ({q1_manual/VOL_Z1:.2f} ACH)</p>",
                 unsafe_allow_html=True)
     st.session_state["fz1_pct_computed"] = flow_z1_manual
+    st.session_state["fz1_m3h_computed"] = q1_manual
 
     # Zone 02: Radio-Stufen + Feinjustierung in m³/h (max 200 m³/h)
     st.markdown(f"<div style='font-family:JetBrains Mono;font-size:.72rem;color:{MUTED};margin:4px 0 2px 0;letter-spacing:1px;'>STUFE ZONE 02</div>", unsafe_allow_html=True)
@@ -1255,9 +1256,9 @@ with st.sidebar:
     sz2_sel = st.radio("Stufe Zone 02", _slabels_z2, index=0, key="sz2_radio")
     flow_z2_stufe_pct = stufen_pct[_slabels_z2.index(sz2_sel)]
     # Stufenwert in m³/h als Startwert
-    _z2_default = min(200, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
+    _z2_default = min(2000, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
     # Absoluter Slider 0–200 m³/h, Stufe setzt den Defaultwert
-    flow_z2_m3h = st.slider("Z2 [m\u00b3/h]", 0, 200, _z2_default, 5, key="fz2_fine")
+    flow_z2_m3h = st.slider("Z2 [m³/h]", 0, 2000, min(2000,_z2_default), 10, key="fz2_fine")
     flow_z2_manual    = max(1, int(flow_z2_m3h / FAN_Z2_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{GREEN};margin:2px 0 6px 0;'>"
                 f"Z2: <b>{flow_z2_m3h} m³/h</b> &nbsp;|&nbsp; <b>{flow_z2_manual}%</b> &nbsp;|&nbsp; {ach_val(flow_z2_manual,VOL_Z2):.2f} ACH</p>",
@@ -1271,7 +1272,7 @@ with st.sidebar:
     ea, eb = st.columns(2)
     CO2_RATE_AVG  = ea.number_input("CO₂ Ø g/kg/h", 0.01, 2.0,  0.125, 0.005,
         format="%.3f", help="Durchschnittliche CO2-Emissionsrate g/kg Substrat/h (Glockenform, Peak ≈ 3× Ø)")
-    NH3_RATE_BASE = eb.number_input("NH₃ Basis g/kg/h", 0.00001, 0.01, 0.0002, 0.00005,
+    NH3_RATE_BASE = eb.number_input("NH₃ Basis g/kg/h", 0.0001, 0.01, 0.001, 0.0001,
         format="%.5f", help="NH3-Basisrate Tag 1 — steigt exponentiell bis ca. 45× bis Tag 8")
 
     # Anzeige der resultierenden Peak-Werte
@@ -1308,8 +1309,8 @@ with st.sidebar:
         fz2_now = int(st.session_state.flow_z2)
         # Progress zeigt Lüfterstärke, nicht Masttag
         st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.72rem;color:{MUTED};margin:6px 0 2px 0;'>Masttag {d:.1f}/8</p>", unsafe_allow_html=True)
-        st.progress(min(1.0, fz1_now/100.0), text=f"Z1: {fz1_now}% = {fan_m3h(fz1_now,VOL_Z1):.0f} m³/h")
-        st.progress(min(1.0, fz2_now/100.0), text=f"Z2: {fz2_now}% = {fan_m3h_z2(fz2_now):.0f} m³/h")
+        st.progress(min(1.0, fz1_now/100.0), text=f"Z1: {fan_m3h(fz1_now,VOL_Z1,FAN_Z1_MAX_M3H):.0f} m³/h ({fz1_now}%)")
+        st.progress(min(1.0, fz2_now/100.0), text=f"Z2: {fan_m3h_z2(fz2_now):.0f} m³/h ({fz2_now}%)")
         st.markdown(f"""
 <div style='font-family:JetBrains Mono;font-size:.78rem;margin:6px 0;line-height:1.8;'>
 <span style='color:{BLUE};'>▶ Z1: {fz1_now}% &nbsp; {ach(fz1_now,VOL_Z1):.2f} ACH</span><br>
@@ -1318,7 +1319,7 @@ with st.sidebar:
 
 # Emissionsraten aus Sidebar (editierbar)
 CO2_RATE_AVG  = st.session_state.get("co2_rate_avg",  0.125)
-NH3_RATE_BASE = st.session_state.get("nh3_rate_base", 0.0002)
+NH3_RATE_BASE = st.session_state.get("nh3_rate_base", 0.001)   # g/kg/h = 1 mg/kg/h — realistischer BSF-Default
 
 # PDF-Button — nach Emissionsraten damit Werte verfügbar
 with st.sidebar:
@@ -1341,14 +1342,15 @@ div[data-testid="stSidebar"] div.stButton > button[kind="primary"]:hover {{
     if st.button("📄 BERICHT GENERIEREN", use_container_width=True, type="primary"):
         with st.spinner("Generiere PDF..."):
             # flow_z1/z2 aus session_state (werden weiter unten gesetzt, Fallback auf Defaults)
-            _flow_z1     = st.session_state.get("fz1_pct_computed", 40)
-            _flow_z2_m3h = st.session_state.get("fz2_m3h_computed", 100)
+            _flow_z1     = st.session_state.get("fz1_pct_computed", 20)
+            _q1_m3h      = st.session_state.get("fz1_m3h_computed", int(0.2 * FAN_Z1_MAX_M3H))
+            _flow_z2_m3h = st.session_state.get("fz2_m3h_computed", int(0.2 * FAN_Z2_MAX_M3H))
             _flow_z2     = max(1, int(_flow_z2_m3h / FAN_Z2_MAX_M3H * 100))
             _co2_z1 = macro_co2(mass_z1*1000, _flow_z1, VOL_Z1, mast_day)
             _nh3_z1 = macro_nh3(mass_z1*1000, _flow_z1, VOL_Z1, mast_day)
             _co2_z2 = macro_co2(mass_z2*1000, _flow_z2, VOL_Z2, mast_day)
             _nh3_z2 = macro_nh3(mass_z2*1000, _flow_z2, VOL_Z2, mast_day)
-            _q1 = fan_m3h(_flow_z1, VOL_Z1)
+            _q1 = _q1_m3h
             _q2 = _flow_z2_m3h
             _stufen_co2 = [st.session_state.get(f"s_co2_{i}", d) for i,d in enumerate([420,3000,5000,10000])]
             _stufen_nh3 = [st.session_state.get(f"s_nh3_{i}", d) for i,d in enumerate([0,12,25,50])]
@@ -1424,7 +1426,7 @@ if st.session_state.sim_active:
             st.session_state[lst] = st.session_state[lst][-200:]
 else:
     mast_day = mast_day  # vom Slider
-    flow_z1 = flow_z1_manual   # aus Stufenwahl + Feinjustierung
+    flow_z1 = flow_z1_manual   # % — m³/h = q1_manual
     flow_z2 = flow_z2_manual
     co2_z1 = macro_co2(mass_z1*1000, flow_z1, VOL_Z1, mast_day)
     nh3_z1 = macro_nh3(mass_z1*1000, flow_z1, VOL_Z1, mast_day)
