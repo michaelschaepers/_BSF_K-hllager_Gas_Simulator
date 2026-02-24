@@ -723,7 +723,7 @@ CO2_AMBIENT = 420.0   # ppm CO2 Außenluft
 # ── LÜFTER-AUSLEGUNG ─────────────────────────────────────────
 # 100% = Nennvolumenstrom — ausgelegt für max. 6 ACH Zone 01
 FAN_Z1_MAX_M3H = 40000.0         # Auslegungsmaximum Zone 01 für Simulation
-FAN_Z2_MAX_M3H = 6000.0          # Auslegungsmaximum Zone 02 für Simulation
+FAN_Z2_MAX_M3H = 10000.0         # Auslegungsmaximum Zone 02 für Simulation
 
 def fan_m3h(pct, vol, max_q=None):
     """Volumenstrom in m³/h bei gegebener Lüfterprozent und Raumvolumen"""
@@ -1256,9 +1256,9 @@ with st.sidebar:
     sz2_sel = st.radio("Stufe Zone 02", _slabels_z2, index=0, key="sz2_radio")
     flow_z2_stufe_pct = stufen_pct[_slabels_z2.index(sz2_sel)]
     # Stufenwert in m³/h als Startwert
-    _z2_default = min(6000, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
+    _z2_default = min(10000, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
     # Absoluter Slider 0–200 m³/h, Stufe setzt den Defaultwert
-    flow_z2_m3h = st.slider("Z2 [m³/h]", 0, 6000, min(6000,_z2_default), 50, key="fz2_fine")
+    flow_z2_m3h = st.slider("Z2 [m³/h]", 0, 10000, min(10000,_z2_default), 50, key="fz2_fine")
     flow_z2_manual    = max(1, int(flow_z2_m3h / FAN_Z2_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{GREEN};margin:2px 0 6px 0;'>"
                 f"Z2: <b>{flow_z2_m3h} m³/h</b> &nbsp;|&nbsp; <b>{flow_z2_manual}%</b> &nbsp;|&nbsp; {ach_val(flow_z2_manual,VOL_Z2):.2f} ACH</p>",
