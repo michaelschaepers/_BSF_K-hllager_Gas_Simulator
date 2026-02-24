@@ -184,7 +184,7 @@ def make_pdf_report(params: dict) -> bytes:
         y_max = max(float(arr.max()*1.15),
                     max(tv for tv,_ in thresholds)*1.1 if thresholds else 100)
 
-        def px(hval): return PAD_L + (hval/96.0)*CW
+        def px(hval): return PAD_L + (hval/288.0)*CW
         def py(ppm):  return PAD_B + (min(ppm,y_max)/y_max)*CH2
 
         d = Drawing(w, h)
@@ -196,7 +196,7 @@ def make_pdf_report(params: dict) -> bytes:
                    fillColor=colors.HexColor('#0D1520'), strokeColor=None))
 
         # Gitternetz + Stundenmarkierungen
-        for hh, lbl in [(0,'T1'),(24,'T2'),(48,'T3'),(72,'T4'),(96,'T5')]:
+        for hh, lbl in [(h,(f'T{d}')) for d,h in enumerate(range(0,{SIM_H}+1,24),1)]:
             x = px(hh)
             d.add(Line(x, PAD_B, x, PAD_B+CH2,
                        strokeColor=colors.HexColor('#1C2D3F'),
@@ -501,7 +501,7 @@ def make_pdf_report(params: dict) -> bytes:
         S_SUB))
     story.append(hr())
 
-    hours_arr = np.linspace(0, 96, 200)
+    hours_arr = np.linspace(0, 288, 400)
     days_arr  = 1.0 + hours_arr / 24.0
 
     import math
@@ -722,8 +722,8 @@ CO2_AMBIENT = 420.0   # ppm CO2 Außenluft
 
 # ── LÜFTER-AUSLEGUNG ─────────────────────────────────────────
 # 100% = Nennvolumenstrom — ausgelegt für max. 6 ACH Zone 01
-FAN_Z1_MAX_M3H = 40000.0         # Auslegungsmaximum Zone 01 für Simulation
-FAN_Z2_MAX_M3H = 40000.0         # Auslegungsmaximum Zone 02 für Simulation
+FAN_Z1_MAX_M3H = 60000.0         # Auslegungsmaximum Zone 01 für Simulation
+FAN_Z2_MAX_M3H = 60000.0         # Auslegungsmaximum Zone 02 für Simulation
 
 def fan_m3h(pct, vol, max_q=None):
     """Volumenstrom in m³/h bei gegebener Lüfterprozent und Raumvolumen"""
@@ -1241,7 +1241,7 @@ with st.sidebar:
     sz1_sel = st.radio("Stufe Zone 01", _slabels, index=0, key="sz1_radio")
     flow_z1_stufe = stufen_pct[_slabels.index(sz1_sel)]
     _z1_default = max(1, int(flow_z1_stufe / 100.0 * FAN_Z1_MAX_M3H))
-    q1_manual = st.slider("Z1 [m³/h]", 0, 40000, _z1_default, 100, key="fz1_fine")
+    q1_manual = st.slider("Z1 [m³/h]", 0, 60000, _z1_default, 100, key="fz1_fine")
     flow_z1_manual = max(1, int(q1_manual / FAN_Z1_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{BLUE};margin:2px 0 6px 0;'>"
                 f"Z1: <b>{q1_manual} m³/h</b> → <b>{flow_z1_manual}%</b> ({q1_manual/VOL_Z1:.2f} ACH)</p>",
@@ -1256,9 +1256,9 @@ with st.sidebar:
     sz2_sel = st.radio("Stufe Zone 02", _slabels_z2, index=0, key="sz2_radio")
     flow_z2_stufe_pct = stufen_pct[_slabels_z2.index(sz2_sel)]
     # Stufenwert in m³/h als Startwert
-    _z2_default = min(40000, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
+    _z2_default = min(60000, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
     # Absoluter Slider 0–200 m³/h, Stufe setzt den Defaultwert
-    flow_z2_m3h = st.slider("Z2 [m³/h]", 0, 40000, min(40000,_z2_default), 100, key="fz2_fine")
+    flow_z2_m3h = st.slider("Z2 [m³/h]", 0, 60000, min(60000,_z2_default), 100, key="fz2_fine")
     flow_z2_manual    = max(1, int(flow_z2_m3h / FAN_Z2_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{GREEN};margin:2px 0 6px 0;'>"
                 f"Z2: <b>{flow_z2_m3h} m³/h</b> &nbsp;|&nbsp; <b>{flow_z2_manual}%</b> &nbsp;|&nbsp; {ach_val(flow_z2_manual,VOL_Z2):.2f} ACH</p>",
@@ -1620,8 +1620,8 @@ with col_diag:
     # DIAGRAMME — sauber, 4 Stück, klar strukturiert
     # ════════════════════════════════════════════════
     # X-Achse: Stunden 0–96 (= 4 Tage Mastdauer sichtbar)
-    hours = np.linspace(0, 96, 200)          # 0..96 h
-    days  = 1.0 + hours / 24.0              # Masttag für Physik-Funktionen
+    hours = np.linspace(0, 288, 400)         # 0..288 h = 12 Tage
+    days  = 1.0 + hours / 24.0              # Masttag für Physik-Funktionen (0..288h)
     h_now = (mast_day - 1.0) * 24.0         # aktueller Masttag → Stunden
 
     CH   = 400   # Chart-Höhe px
@@ -1632,8 +1632,8 @@ with col_diag:
             height=CH, paper_bgcolor=DARK, plot_bgcolor=DARK,
             font=dict(color=WHITE, size=FS),
             xaxis=dict(title="Stunden [h]", color=WHITE, gridcolor=BORDER,
-                       tickmode='linear', dtick=12,
-                       range=[0, 96],
+                       tickmode='linear', dtick=24,
+                       range=[0, 288],
                        tickfont=dict(size=FS), title_font=dict(size=FS, color=WHITE),
                        # Tag-Markierungen als vertikale Hilfslinien
                        ),
@@ -1654,11 +1654,12 @@ with col_diag:
         return lo
 
     def add_day_markers(fig, ymax):
-        """Tag 1–4 als vertikale Markierungen bei 0,24,48,72,96h"""
-        for h, lbl in [(0,"Tag 1"),(24,"Tag 2"),(48,"Tag 3"),(72,"Tag 4"),(96,"Tag 5")]:
+        """Tag 1–12 als vertikale Markierungen alle 24h"""
+        for d in range(1, 13):
+            h = (d-1)*24
             fig.add_vline(x=h, line_color=BORDER, line_dash="dot", line_width=1)
-            fig.add_annotation(x=h+1, y=ymax*0.97, text=lbl, showarrow=False,
-                font=dict(color=MUTED, size=11, family="JetBrains Mono"), xanchor="left")
+            fig.add_annotation(x=h+1, y=ymax*0.97, text=f"T{d}", showarrow=False,
+                font=dict(color=MUTED, size=10, family="JetBrains Mono"), xanchor="left")
 
     def vline_now(fig, x_h, y, label, color):
         fig.add_vline(x=x_h, line_color=YELLOW, line_dash="dash", line_width=2)
@@ -1772,7 +1773,7 @@ with col_diag:
         name="Lüfterstufe NH₃ [%]",
         line=dict(color=YELLOW, width=2, shape='hv'),
         yaxis='y2', opacity=0.9))
-    fig2.add_vrect(x0=72, x1=96, fillcolor=rgba_red(0.05), line_width=0)
+    fig2.add_vrect(x0=72, x1=288, fillcolor=rgba_red(0.05), line_width=0)
     # Peak-Annotation NH3 (Scheitelpunkt = Tag 8 = Ende)
     _n1_ann_y = min(n1_peak_ppm, _ym1 * 0.92)
     fig2.add_annotation(x=hours[-1], y=_n1_ann_y,
@@ -1861,7 +1862,7 @@ with col_diag:
         name=f"NH₃ Z02 ({int(flow_z2)}% / {q2:.0f} m³/h)",
         line=dict(color=YELLOW, width=3.5),
         fill='tozeroy', fillcolor=rgba_yellow(0.14)))
-    fig4.add_vrect(x0=72, x1=96, fillcolor=rgba_red(0.05), line_width=0)
+    fig4.add_vrect(x0=72, x1=288, fillcolor=rgba_red(0.05), line_width=0)
     _n2_ann_y = min(n2_peak_ppm, _ym2 * 0.92)
     fig4.add_annotation(x=hours[-1], y=_n2_ann_y,
         text=f"⌃ {n2_peak_ppm:.1f} ppm<br>{n2_peak_rate:.3f} mg/kg/h",
@@ -1878,6 +1879,8 @@ with col_diag:
 
 # ── RECHTE SPALTE: Schaltstufen + Info ────────────
 with col_side:
+    # Spacer um rechte Spalte nach unten zu verschieben
+    st.markdown("<div style='margin-top:420px;'></div>", unsafe_allow_html=True)
     # Dynamische Labels aus editierten Stufen
     _snames  = ["ECO", "STUFE 1", "STUFE 2", "ALARM"]
     _scols   = [MUTED, GREEN, ORANGE, RED]
