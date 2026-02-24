@@ -1589,9 +1589,8 @@ st.divider()
 # ════════════════════════════════════════════════
 
 # ── DIAGRAMME LINKS + SCHALTSTUFEN/INFO RECHTS ──
-col_diag, col_side = st.columns([1.6, 1])
-
-with col_diag:
+# Diagramme volle Breite
+if True:
     days = np.linspace(1, 8, 100)
     ht   = st.session_state.hist_t       or [0, 0.5]
     hc1  = st.session_state.hist_co2_z1  or [co2_z1]*2
@@ -1624,12 +1623,13 @@ with col_diag:
     days  = 1.0 + hours / 24.0              # Masttag für Physik-Funktionen (0..288h)
     h_now = (mast_day - 1.0) * 24.0         # aktueller Masttag → Stunden
 
-    CH   = 400   # Chart-Höhe px
+    CH   = 400   # Chart-Höhe CO2 px
+    CH_NH3 = 800  # Chart-Höhe NH3 px (doppelt)
     FS   = 13    # Font-Size
 
-    def base_layout(y_range=None, title_y2=None):
+    def base_layout(y_range=None, title_y2=None, nh3=False):
         lo = dict(
-            height=CH, paper_bgcolor=DARK, plot_bgcolor=DARK,
+            height=CH_NH3 if nh3 else CH, paper_bgcolor=DARK, plot_bgcolor=DARK,
             font=dict(color=WHITE, size=FS),
             xaxis=dict(title="Stunden [h]", color=WHITE, gridcolor=BORDER,
                        tickmode='linear', dtick=24,
@@ -1785,7 +1785,7 @@ with col_diag:
     fig2.add_annotation(x=73, y=_ym1*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig2, h_now, n1_ist, f"{n1_ist:.1f} ppm", ORANGE)
-    fig2.update_layout(**base_layout(y_range=[0, _ym1], title_y2="Lüfter [%]"))
+    fig2.update_layout(**base_layout(y_range=[0, _ym1], title_y2="Lüfter [%]", nh3=True))
     add_day_markers(fig2, _ym1)
     st.plotly_chart(fig2, use_container_width=True)
 
@@ -1873,67 +1873,56 @@ with col_diag:
     fig4.add_annotation(x=73, y=_ym2*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig4, h_now, n2_ist, f"{n2_ist:.1f} ppm", YELLOW)
-    fig4.update_layout(**base_layout(y_range=[0, _ym2]))
+    fig4.update_layout(**base_layout(y_range=[0, _ym2], nh3=True))
     add_day_markers(fig4, _ym2)
     st.plotly_chart(fig4, use_container_width=True)
 
-# ── RECHTE SPALTE: Schaltstufen + Info ────────────
-with col_side:
-    # Spacer um rechte Spalte nach unten zu verschieben
-    st.markdown("<div style='margin-top:420px;'></div>", unsafe_allow_html=True)
-    # Dynamische Labels aus editierten Stufen
-    _snames  = ["ECO", "STUFE 1", "STUFE 2", "ALARM"]
-    _scols   = [MUTED, GREEN, ORANGE, RED]
-    _co2_lbl = [f"{_snames[i]}\n{stufen_pct[i]}%" for i in range(4)]
-    _nh3_lbl = [f"{_snames[i]}\n{'<' if i==0 else ''}{stufen_nh3[i]} ppm" for i in range(4)]
+# ── SCHALTSTUFEN & INFO — VOLLE BREITE UNTEN ──────
+_snames  = ["ECO", "STUFE 1", "STUFE 2", "ALARM"]
+_scols   = [MUTED, GREEN, ORANGE, RED]
+_co2_lbl = [f"{_snames[i]}\n{stufen_pct[i]}%" for i in range(4)]
+_nh3_lbl = [f"{_snames[i]}\n{'<' if i==0 else ''}{stufen_nh3[i]} ppm" for i in range(4)]
 
-    # Aktive Stufen bestimmen
-    aktiv        = [fs_nr == i for i in range(4)]
-    nh3_aktiv_nr = 0 if nh3_z1<stufen_nh3[1] else 1 if nh3_z1<stufen_nh3[2] else 2 if nh3_z1<stufen_nh3[3] else 3
-    bar_cols_co2 = [_scols[i] if aktiv[i]         else "#0F1825" for i in range(4)]
-    bar_cols_nh3 = [_scols[i] if i<=nh3_aktiv_nr  else "#0F1825" for i in range(4)]
+aktiv        = [fs_nr == i for i in range(4)]
+nh3_aktiv_nr = 0 if nh3_z1<stufen_nh3[1] else 1 if nh3_z1<stufen_nh3[2] else 2 if nh3_z1<stufen_nh3[3] else 3
+bar_cols_co2 = [_scols[i] if aktiv[i]        else "#0F1825" for i in range(4)]
+bar_cols_nh3 = [_scols[i] if i<=nh3_aktiv_nr else "#0F1825" for i in range(4)]
 
-    # ── gemeinsame Layout-Basis für beide Charts ──
-    def _stage_layout(ytitle, yrange):
-        return dict(
-            height=300, paper_bgcolor=DARK, plot_bgcolor=DARK,
-            xaxis=dict(color=WHITE, gridcolor='rgba(0,0,0,0)',
-                       tickfont=dict(size=12, family="JetBrains Mono")),
-            yaxis=dict(title=ytitle, color=WHITE, gridcolor=BORDER,
-                       range=yrange, tickfont=dict(size=11),
-                       title_font=dict(size=11, color=WHITE)),
-            font=dict(color=WHITE, family="JetBrains Mono"),
-            showlegend=False, margin=dict(l=55, r=15, t=28, b=8))
+def _stage_layout(ytitle, yrange):
+    return dict(
+        height=300, paper_bgcolor=DARK, plot_bgcolor=DARK,
+        xaxis=dict(color=WHITE, gridcolor='rgba(0,0,0,0)',
+                   tickfont=dict(size=12, family="JetBrains Mono")),
+        yaxis=dict(title=ytitle, color=WHITE, gridcolor=BORDER,
+                   range=yrange, tickfont=dict(size=11),
+                   title_font=dict(size=11, color=WHITE)),
+        font=dict(color=WHITE, family="JetBrains Mono"),
+        showlegend=False, margin=dict(l=55, r=15, t=28, b=8))
 
-    # ── CO2 Lüfterstufen ──────────────────────────
-    st.markdown(f"<div class='sec'>CO₂-Lüfterstufen Zone 01</div>", unsafe_allow_html=True)
-    # CO2-Balken: wie NH3 — gestapelt von Schwelle zu Schwelle
-    _co2_tops = [stufen_pct[0], stufen_pct[1], stufen_pct[2], stufen_pct[3]]
+_sc1, _sc2 = st.columns(2)
+
+with _sc1:
+    st.markdown(f"<div class='sec'>CO\u2082-Lüfterstufen Zone 01</div>", unsafe_allow_html=True)
     _co2_ys   = [stufen_pct[0],
                  stufen_pct[1] - stufen_pct[0],
                  stufen_pct[2] - stufen_pct[1],
                  stufen_pct[3] - stufen_pct[2]]
     _co2_base = [0, stufen_pct[0], stufen_pct[1], stufen_pct[2]]
-    _co2_anno_co2 = [stufen_co2[0], stufen_co2[1], stufen_co2[2], stufen_co2[3]]
-
     fig_stages = go.Figure()
+    _aktiv_txt = ["▶ " if aktiv[i] else "" for i in range(4)]
     fig_stages.add_trace(go.Bar(
-        x=_co2_lbl,
-        y=_co2_ys,
-        base=_co2_base,
+        x=_co2_lbl, y=_co2_ys, base=_co2_base,
         marker=dict(color=bar_cols_co2, line=dict(color=_scols, width=2)),
-        text=[f"{'▶ ' if aktiv[i] else ''}{stufen_pct[i]}%" for i in range(4)],
+        text=[f"{_aktiv_txt[i]}{stufen_pct[i]}%" for i in range(4)],
         textfont=dict(color=WHITE, size=13, family="JetBrains Mono"),
         textposition='inside', width=0.6,
     ))
-    # CO2-Schwellen als Annotations über jedem Balken
     for i in range(1, 4):
         fig_stages.add_annotation(
             x=_co2_lbl[i], y=stufen_pct[i] + 4,
-            text=f"CO₂ > {stufen_co2[i]:,} ppm",
+            text=f"CO\u2082 > {stufen_co2[i]:,} ppm",
             showarrow=False,
             font=dict(color=_scols[i], size=10, family="JetBrains Mono"))
-    # aktueller Lüfter-% als horizontale Linie
     fig_stages.add_hline(y=flow_z1, line_color=YELLOW, line_dash="dash", line_width=1.5,
         annotation_text=f"  aktuell: {flow_z1:.0f}%",
         annotation_font=dict(color=YELLOW, size=10, family="JetBrains Mono"),
@@ -1941,19 +1930,15 @@ with col_side:
     fig_stages.update_layout(**_stage_layout("Lüfterstärke [%]", [0, max(stufen_pct)*1.22]))
     st.plotly_chart(fig_stages, use_container_width=True)
 
-    # ── NH3 Schwellen ──────────────────────────────
-    st.markdown(f"<div class='sec red' style='margin-top:4px;'>NH₃-Schwellen Zone 01</div>", unsafe_allow_html=True)
-    # Balkenhöhen: jede Stufe geht von ihrer Schwelle bis zur nächsten
+with _sc2:
+    st.markdown(f"<div class='sec red' style='margin-top:4px;'>NH\u2083-Schwellen Zone 01</div>", unsafe_allow_html=True)
     _nh3_tops = [stufen_nh3[1], stufen_nh3[2], stufen_nh3[3], stufen_nh3[3]*1.6]
     _nh3_ys   = [_nh3_tops[i] - (stufen_nh3[i] if i>0 else 0) for i in range(4)]
     _nh3_base = [0, stufen_nh3[1], stufen_nh3[2], stufen_nh3[3]]
     _nh3_anno = [stufen_nh3[1], stufen_nh3[2], stufen_nh3[3], int(stufen_nh3[3]*1.6)]
-
     fig_ns = go.Figure()
     fig_ns.add_trace(go.Bar(
-        x=_nh3_lbl,
-        y=_nh3_ys,
-        base=_nh3_base,
+        x=_nh3_lbl, y=_nh3_ys, base=_nh3_base,
         marker=dict(color=bar_cols_nh3, line=dict(color=_scols, width=2)),
         text=[f"{_nh3_anno[i]} ppm" for i in range(4)],
         textfont=dict(color=WHITE, size=12, family="JetBrains Mono"),
@@ -1964,60 +1949,31 @@ with col_side:
         annotation_font=dict(color=YELLOW, size=10, family="JetBrains Mono"),
         annotation_position="right")
     _nh3_ymax = stufen_nh3[3] * 1.75
-    fig_ns.update_layout(**_stage_layout("NH₃ [ppm]", [0, _nh3_ymax]))
+    fig_ns.update_layout(**_stage_layout("NH\u2083 [ppm]", [0, _nh3_ymax]))
     st.plotly_chart(fig_ns, use_container_width=True)
 
-    # Technische Parameter
-    st.markdown("<div class='sec' style='margin-top:4px;'>Technische Parameter LP 640_07</div>", unsafe_allow_html=True)
-    co2_prod = (mass_z1 * 1000 * co2_rate_g_kg_h(mast_day)) / 1000
-    nh3_prod = (mass_z1 * 1000 * nh3_rate_g_kg_h(mast_day))
-    nh3_end_v = nh3_rate_g_kg_h(8.0)*1000
-    factor_v  = nh3_end_v / max(nh3_rate_g_kg_h(mast_day)*1000, 0.01)
-
-    st.markdown(f"""
-<div class='infobox'>
+# Technische Parameter
+co2_prod  = (mass_z1 * 1000 * co2_rate_g_kg_h(mast_day)) / 1000
+nh3_prod  = (mass_z1 * 1000 * nh3_rate_g_kg_h(mast_day))
+nh3_end_v = nh3_rate_g_kg_h(8.0)*1000
+factor_v  = nh3_end_v / max(nh3_rate_g_kg_h(mast_day)*1000, 0.01)
+st.markdown(f"""<div class='infobox'>
 <h5>Lastenheft &amp; Simulation — Tag {mast_day:.1f}</h5>
 <table style='width:100%;font-size:.92rem;border-collapse:collapse;line-height:2.0;'>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Volumen Z1</td>
-    <td class='v'>{VOL_Z1:.0f} m³</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Larvenmasse Z1</td>
-    <td class='v'>{mass_z1:.1f} t</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>CO₂-Produktion</td>
-    <td class='v'>{co2_prod:.2f} kg/h</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>NH₃-Produktion</td>
-    <td class='v'>{nh3_prod:.0f} g/h</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Luftwechsel Z1</td>
-    <td class='v'>{ach(flow_z1,VOL_Z1):.2f} /h</td></tr>
-<tr style='border-top:1px solid {BORDER};'>
-<td class='lb' style='padding:5px 8px 2px 0;'>CO₂ gesamt 8 Tage</td>
-    <td class='v'>1.414 g/kg</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>NH₃ Anstiegsfaktor</td>
-    <td class='v' style='color:{RED};'>{factor_v:.1f}×</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>NH₃-Red. Wäscher</td>
-    <td class='v' style='color:{GREEN};'>bis −82%</td></tr>
-<tr style='border-top:1px solid {BORDER};'>
-<td class='lb' style='padding:5px 8px 2px 0;'>Z1 Soll-Temp.</td>
-    <td class='v'>max. 10 °C</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Z2 Soll-Temp.</td>
-    <td class='v'>max. 13 °C</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Sensorik</td>
-    <td class='v'>3× NH₃+CO₂+T+rF</td></tr>
-<tr><td class='lb' style='padding:2px 8px 2px 0;'>Liefertermin</td>
-    <td class='v' style='color:{YELLOW};'>10.06.2026</td></tr>
-</table>
-<div style='margin-top:10px;border-top:1px solid {BORDER};padding-top:8px;
-     font-size:.78rem;color:{MUTED};line-height:1.9;'>
-<span style='color:{BLUE};'>CO₂ (ρ={RHO_CO2}):</span> bodennah → Abluft unten hinten<br>
-<span style='color:{YELLOW};'>NH₃ (ρ={RHO_NH3}):</span> deckennah → Deckenkanal hinten<br>
-<span style='color:{GREEN};'>Zuluft:</span> oben vorne Ecke → diagonal tangential<br>
-<span style='color:{ORANGE};'>Mikro/Makro:</span> Direktabsaugung Larvenbett −40..−60%
-</div></div>
-""", unsafe_allow_html=True)
+<tr><td class='lb'>Volumen Z1</td><td class='v'>{VOL_Z1:.0f} m³</td></tr>
+<tr><td class='lb'>Larvenmasse Z1</td><td class='v'>{mass_z1:.1f} t</td></tr>
+<tr><td class='lb'>CO\u2082-Produktion</td><td class='v'>{co2_prod:.2f} kg/h</td></tr>
+<tr><td class='lb'>NH\u2083-Produktion</td><td class='v'>{nh3_prod:.0f} g/h</td></tr>
+<tr><td class='lb'>Luftwechsel Z1</td><td class='v'>{ach(flow_z1,VOL_Z1):.2f} /h</td></tr>
+<tr><td class='lb'>NH\u2083 Anstiegsfaktor</td><td class='v' style='color:{RED};'>{factor_v:.1f}×</td></tr>
+<tr><td class='lb'>Z1 Soll-Temp.</td><td class='v'>max. 10 °C</td></tr>
+<tr><td class='lb'>Liefertermin</td><td class='v' style='color:{YELLOW};'>10.06.2026</td></tr>
+</table></div>""", unsafe_allow_html=True)
 
-    if os.path.exists("facility_layout.png"):
-        st.markdown("<div class='sec' style='margin-top:12px;'>Facility Layout</div>", unsafe_allow_html=True)
-        st.image("facility_layout.png", use_container_width=True,
-                 caption="14x40ft Container | Zone 01+02 | Steyerberg")
+if os.path.exists("facility_layout.png"):
+    st.image("facility_layout.png", use_container_width=True,
+             caption="14x40ft Container | Zone 01+02 | Steyerberg")
+
 
 st.divider()
 
