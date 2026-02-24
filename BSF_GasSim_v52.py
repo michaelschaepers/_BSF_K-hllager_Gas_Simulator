@@ -1254,11 +1254,10 @@ with st.sidebar:
                    f"STUFE 2 — {stufen_pct[2]}%", f"ALARM — {stufen_pct[3]}%"]
     sz2_sel = st.radio("Stufe Zone 02", _slabels_z2, index=0, key="sz2_radio")
     flow_z2_stufe_pct = stufen_pct[_slabels_z2.index(sz2_sel)]
-    # Stufenwert in m³/h (begrenzt auf 200)
-    flow_z2_stufe_m3h = min(200, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
-    # Feinjustierung ±15 m³/h, Gesamtwert 0–200 m³/h
-    flow_z2_fine_m3h  = st.slider("Fein Z2 [m³/h]", -15, 15, 0, key="fz2_fine")
-    flow_z2_m3h       = max(0, min(200, flow_z2_stufe_m3h + flow_z2_fine_m3h))
+    # Stufenwert in m³/h als Startwert
+    _z2_default = min(200, int(flow_z2_stufe_pct / 100.0 * FAN_Z2_MAX_M3H))
+    # Absoluter Slider 0–200 m³/h, Stufe setzt den Defaultwert
+    flow_z2_m3h = st.slider("Z2 [m\u00b3/h]", 0, 200, _z2_default, 5, key="fz2_fine")
     flow_z2_manual    = max(1, int(flow_z2_m3h / FAN_Z2_MAX_M3H * 100))
     st.markdown(f"<p style='font-family:JetBrains Mono;font-size:.82rem;color:{GREEN};margin:2px 0 6px 0;'>"
                 f"Z2: <b>{flow_z2_m3h} m³/h</b> &nbsp;|&nbsp; <b>{flow_z2_manual}%</b> &nbsp;|&nbsp; {ach_val(flow_z2_manual,VOL_Z2):.2f} ACH</p>",
