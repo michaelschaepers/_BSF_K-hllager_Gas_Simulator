@@ -1785,6 +1785,28 @@ if True:
         ax=-55, ay=-35, xanchor="right")
     fig2.add_annotation(x=73, y=_ym1*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
+    # Break-Even Kurve: benötigter Volumenstrom um NH3_S3 (Alarm) nicht zu überschreiten
+    import math as _math
+    _be_q = []
+    for _d in days:
+        _t = _d / 8.0
+        if _t < 0.45:
+            _r = NH3_RATE_BASE * (1.0 + 0.5 * _t / 0.45)
+        else:
+            _r = NH3_RATE_BASE * 1.5 * _math.exp(2.6 * (_t - 0.45))
+        _E = _r * mass_z1 * 1000 / 1000 / 0.717
+        _be_q.append(_E / NH3_S3 * 1e6)
+    _be_ppm = [NH3_S3] * len(days)  # konstant auf Alarm-Schwelle → zeigt als ppm-Linie
+    # Als zweite Y-Achse: benötigter m³/h
+    _be_pct = [min(100, q / FAN_Z1_MAX_M3H * 100) for q in _be_q]
+    fig2.add_trace(go.Scatter(x=hours, y=_be_pct,
+        name=f"Break-Even Lüfter für {NH3_S3} ppm",
+        line=dict(color='#00FFFF', width=2, dash='dot'),
+        yaxis='y2', opacity=0.85))
+    fig2.add_annotation(x=hours[len(hours)//2], y=min(95, _be_pct[len(_be_pct)//2]+5),
+        text=f"← min. Lüfter für <{NH3_S3} ppm",
+        showarrow=False, font=dict(color='#00FFFF', size=11, family="JetBrains Mono"),
+        xanchor="left", yref='y2')
     vline_now(fig2, h_now, n1_ist, f"{n1_ist:.1f} ppm", ORANGE)
     fig2.update_layout(**base_layout(y_range=[0, _ym1], title_y2="Lüfter [%]", nh3=True))
     add_day_markers(fig2, _ym1)
@@ -1874,6 +1896,24 @@ if True:
         ax=-55, ay=-35, xanchor="right")
     fig4.add_annotation(x=73, y=_ym2*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
+    _be_q2 = []
+    for _d in days:
+        _t = _d / 8.0
+        if _t < 0.45:
+            _r2 = NH3_RATE_BASE * (1.0 + 0.5 * _t / 0.45)
+        else:
+            _r2 = NH3_RATE_BASE * 1.5 * _math.exp(2.6 * (_t - 0.45))
+        _E2 = _r2 * mass_z2 * 1000 / 1000 / 0.717
+        _be_q2.append(_E2 / NH3_S3 * 1e6)
+    _be_pct2 = [min(100, q / FAN_Z2_MAX_M3H * 100) for q in _be_q2]
+    fig4.add_trace(go.Scatter(x=hours, y=_be_pct2,
+        name=f"Break-Even Lüfter für {NH3_S3} ppm",
+        line=dict(color='#00FFFF', width=2, dash='dot'),
+        yaxis='y2', opacity=0.85))
+    fig4.add_annotation(x=hours[len(hours)//2], y=min(95, _be_pct2[len(_be_pct2)//2]+5),
+        text=f"← min. Lüfter für <{NH3_S3} ppm",
+        showarrow=False, font=dict(color='#00FFFF', size=11, family="JetBrains Mono"),
+        xanchor="left", yref='y2')
     vline_now(fig4, h_now, n2_ist, f"{n2_ist:.1f} ppm", YELLOW)
     fig4.update_layout(**base_layout(y_range=[0, _ym2], title_y2="Lüfter [%]", nh3=True))
     add_day_markers(fig4, _ym2)
