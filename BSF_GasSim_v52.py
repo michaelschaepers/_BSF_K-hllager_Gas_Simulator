@@ -196,7 +196,7 @@ def make_pdf_report(params: dict) -> bytes:
                    fillColor=colors.HexColor('#0D1520'), strokeColor=None))
 
         # Gitternetz + Stundenmarkierungen
-        for hh, lbl in [(h,(f'T{d}')) for d,h in enumerate(range(0,{SIM_H}+1,24),1)]:
+        for hh, lbl in [(h, f'T{d}') for d,h in enumerate(range(0, 289, 24), 1)]:
             x = px(hh)
             d.add(Line(x, PAD_B, x, PAD_B+CH2,
                        strokeColor=colors.HexColor('#1C2D3F'),
@@ -1627,7 +1627,7 @@ if True:
     CH_NH3 = 800  # Chart-Höhe NH3 px (doppelt)
     FS   = 13    # Font-Size
 
-    def base_layout(y_range=None, title_y2=None, nh3=False):
+    def base_layout(y_range=None, title_y2=None, nh3=False, log=False):
         lo = dict(
             height=CH_NH3 if nh3 else CH, paper_bgcolor=DARK, plot_bgcolor=DARK,
             font=dict(color=WHITE, size=FS),
@@ -1639,7 +1639,7 @@ if True:
                        ),
             yaxis=dict(title="ppm", color=WHITE, gridcolor=BORDER,
                        tickfont=dict(size=FS), title_font=dict(size=FS, color=WHITE),
-                       range=y_range),
+                       range=y_range, type='log' if log else 'linear'),
             legend=dict(font=dict(size=12, color=WHITE), bgcolor='rgba(0,0,0,0)',
                         x=0.01, y=0.99, xanchor='left', yanchor='top'),
             margin=dict(l=60, r=90, t=20, b=50),
@@ -1785,7 +1785,7 @@ if True:
     fig2.add_annotation(x=73, y=_ym1*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig2, h_now, n1_ist, f"{n1_ist:.1f} ppm", ORANGE)
-    fig2.update_layout(**base_layout(y_range=[0, _ym1], title_y2="Lüfter [%]", nh3=True))
+    fig2.update_layout(**base_layout(y_range=None, title_y2="Lüfter [%]", nh3=True, log=True))
     add_day_markers(fig2, _ym1)
     st.plotly_chart(fig2, use_container_width=True)
 
@@ -1873,7 +1873,7 @@ if True:
     fig4.add_annotation(x=73, y=_ym2*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig4, h_now, n2_ist, f"{n2_ist:.1f} ppm", YELLOW)
-    fig4.update_layout(**base_layout(y_range=[0, _ym2], nh3=True))
+    fig4.update_layout(**base_layout(y_range=None, title_y2="Lüfter [%]", nh3=True, log=True))
     add_day_markers(fig4, _ym2)
     st.plotly_chart(fig4, use_container_width=True)
 
