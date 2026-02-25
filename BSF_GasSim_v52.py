@@ -1731,10 +1731,10 @@ if True:
     # CHART 2 — NH3 Zone 01  (exponentiell!)
     # ─────────────────────────────────────────────────
     n1_ist = macro_nh3(mass_z1*1000, flow_z1, VOL_Z1, mast_day)
-    n1_arr = [macro_nh3(mass_z1*1000, flow_z1, VOL_Z1, d) for d in days]
-    n1_noq = [macro_nh3(mass_z1*1000, 20,      VOL_Z1, d) for d in days]
-    ymax1  = max(max(n1_noq)*1.1, 55)
-    _ym1   = min(ymax1, 65)
+    n1_arr = [max(0.1, macro_nh3(mass_z1*1000, flow_z1, VOL_Z1, d)) for d in days]
+    n1_noq = [max(0.1, macro_nh3(mass_z1*1000, 20,      VOL_Z1, d)) for d in days]
+    ymax1  = max(max(n1_noq)*1.2, 100)
+    _ym1   = ymax1
 
     # NH3 Peak = immer Tag 8 = hours[-1]
     n1_peak_ppm  = n1_arr[-1]
@@ -1767,8 +1767,7 @@ if True:
         else:                          fan_step_nh3.append(stufen_pct[0])
     fig2.add_trace(go.Scatter(x=hours, y=n1_arr,
         name=f"NH₃ IST ({int(flow_z1)}% / {fan_m3h(flow_z1,VOL_Z1):.0f} m³/h)",
-        line=dict(color=ORANGE, width=3.5),
-        fill='tozeroy', fillcolor=rgba_orange(0.14)))
+        line=dict(color=ORANGE, width=3.5)))
     fig2.add_trace(go.Scatter(x=hours, y=fan_step_nh3,
         name="Lüfterstufe NH₃ [%]",
         line=dict(color=YELLOW, width=2, shape='hv'),
@@ -1785,7 +1784,7 @@ if True:
     fig2.add_annotation(x=73, y=_ym1*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig2, h_now, n1_ist, f"{n1_ist:.1f} ppm", ORANGE)
-    fig2.update_layout(**base_layout(y_range=None, title_y2="Lüfter [%]", nh3=True, log=True))
+    fig2.update_layout(**base_layout(y_range=[-1, int(__import__('math').log10(max(_ym1,100)))+1], title_y2="Lüfter [%]", nh3=True, log=True))
     add_day_markers(fig2, _ym1)
     st.plotly_chart(fig2, use_container_width=True)
 
@@ -1831,10 +1830,10 @@ if True:
     # CHART 4 — NH3 Zone 02
     # ─────────────────────────────────────────────────
     n2_ist = macro_nh3(mass_z2*1000, flow_z2, VOL_Z2, mast_day)
-    n2_arr = [macro_nh3(mass_z2*1000, flow_z2, VOL_Z2, d) for d in days]
-    n2_noq = [macro_nh3(mass_z2*1000, 20,      VOL_Z2, d) for d in days]
-    ymax2  = max(max(n2_noq)*1.1, 55)
-    _ym2   = min(ymax2, 65)
+    n2_arr = [max(0.1, macro_nh3(mass_z2*1000, flow_z2, VOL_Z2, d)) for d in days]
+    n2_noq = [max(0.1, macro_nh3(mass_z2*1000, 20,      VOL_Z2, d)) for d in days]
+    ymax2  = max(max(n2_noq)*1.2, 100)
+    _ym2   = ymax2
 
     n2_peak_ppm  = n2_arr[-1]
     n2_peak_rate = nh3_rate_g_kg_h(8.0) * 1000
@@ -1873,7 +1872,7 @@ if True:
     fig4.add_annotation(x=73, y=_ym2*0.75, text="↑ Exponentialphase ab Tag 4",
         showarrow=False, font=dict(color=RED, size=12, family="JetBrains Mono"), xanchor="left")
     vline_now(fig4, h_now, n2_ist, f"{n2_ist:.1f} ppm", YELLOW)
-    fig4.update_layout(**base_layout(y_range=None, title_y2="Lüfter [%]", nh3=True, log=True))
+    fig4.update_layout(**base_layout(y_range=[-1, int(__import__('math').log10(max(_ym2,100)))+1], title_y2="Lüfter [%]", nh3=True, log=True))
     add_day_markers(fig4, _ym2)
     st.plotly_chart(fig4, use_container_width=True)
 
